@@ -1,0 +1,271 @@
+---
+title: "Universaltool Regressionsanalyse II (Mehrebenenmodelle)"
+subtitle: "Tag 1: Multiple Regression"
+author: "Samuel Merk"
+date: "01.04.2022"
+output: 
+  rmdformats::downcute:
+    code_folding: show
+    self_contained: true
+    thumbnails: false
+    lightbox: true
+    downcute_theme: "chaos"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, echo=FALSE, results='hide', message=FALSE, warning=FALSE}
+library(tidyverse)
+library(sjPlot)
+library(BayesFactor)
+```
+
+## Worked Out Example: Interpretation multipler Regressionsmodelle 
+
+### Datensatz 1: Kid IQ
+Der Datensatz Kid IQ stammt aus einem der empfohlenen Lehrbücher(Gelman & Hill, 2007). Ursprünglich stammt er aus der National Longitudinal Survey of Youth. Wir werden die folgenden Variablen Nutzen:
+
+* kid_score = Rohwert des Kidnes in einem Intelligenztest
+* mom_hs = Dummyvariable Highschoolabhschluss (1 = Highschoolabschluss, 0 = kein Highschoolabschluss)
+* mom_iq = IQ der Mutter
+* mom_age = Alter der Mutter
+* mom_work = 
+    * 1: mother did not work in first three years of child’s life 
+    * 2: mother worked in second or third year of child’s life 
+    * 3: mother worked part-time in first year of child’s life 
+    * 4: mother worked full-time in first year of child’s life
+
+#### Import der Daten
+```{r, cache=T, message=FALSE, results='hide'}
+library(tidyverse)
+data_kidiq <- read_delim("https://raw.githubusercontent.com/sammerk/did_data/master/kidiq.csv", delim = ";")
+```
+
+```{r, echo = F, results='hide', cache=T}
+haven::write_sav(data_kidiq, "data/data_kidiq.sav")
+```
+
+Diejenigen, die nicht `r fontawesome::fa(name = "r-project")` nutzen wollen, können den Datensatz `r xfun::embed_file("data/data_kidiq.sav", "data_kidiq.sav", "hier")` im SPSS-Format herunterladen.
+
+### Modelle mit einem metrischen Prädiktor
+#### Parametrisierung
+Zunächst soll der `kid_score` mit der metrischen Variable `mom_iq` prädiziert werden. In `r fontawesome::fa(name = "r-project")` erfolgt das mit der Syntax
+
+```{r, cache=T}
+mod01 <- lm(kid_score ~ mom_iq, data = data_kidiq)
+mod01
+```
+
+Grafisch kann dieses Modell wie folgt repräsentiert werden:
+```{r, cache=T}
+library(hrbrthemes)
+data_kidiq %>% 
+  ggplot(., aes(mom_iq, kid_score)) + 
+  geom_point() + 
+  stat_smooth(method = "lm", se = F) + 
+  theme_ipsum()
+```
+
+Und die formale Beschreibung lautet:
+
+```{r echo = F, cache=T}
+library(equatiomatic)
+extract_eq(mod01, use_coefs = T, intercept = "beta")
+```
+
+
+Da der `kid_score` offensichtlich nicht einer Standardskalierung (z-Werte, IQ-Werte, t-Werte, ...) entspricht, kann die Stärke des Effekts nur anhand einer Standardisierung bewertet werden.
+```{r, cache=T}
+mod02 <- lm(scale(kid_score) ~ scale(mom_iq), data = data_kidiq)
+mod02
+```
+
+Dies leisten auch packages wie `{sjPlot}` oder `{stargazer}` die darüber hinaus auch noch mehrere Modelle vergleichend darstellen können.
+```{r, cache=T, message=FALSE}
+library(sjPlot)
+tab_model(mod01, show.std = T, show.ci = F, show.p = F)
+```
+
+Nach Cohen (1988) gilt dabei:
+
+* $\beta \approx .1 \Rightarrow \text{kleiner Effekt}$ 
+* $\beta \approx .3 \Rightarrow \text{moderater Effekt}$
+* $\beta \approx .5 \Rightarrow \text{starker Effekt}$
+
+#### Inferenzstatistik
+Unser $\beta = .45$ beschreibt lediglich die Steigung einer Geraden, wenn man diese nach dem Kriterium der kleinsten Quadrate auf dem Datensatz `kid_iq` optimiert. Möchte man Schlussfolgerungen über den datengenerierenden Mechanismus anstellen benötigt man Inferenzstatistik.  
+p-Werte kann man etwa anhand der `summary()`-Funktion oder der `tab_model()` Funktion erhalten. 
+```{r, cache=T}
+summary(mod01)
+```
+Dabei sind zwei Inferenzstatistiken enthalten:
+
+1) Jeder Koeffizient $\beta_i$ wird gegen die 0 getestet.
+2) Das Gesamtmodell wird gegen $R^2 = 0$ getestet.
+
+JZS-Bayes-Faktoren sind via `{BayesFactor}` ermittelbar:
+```{r, cache=T, message=FALSE, warning=FALSE}
+library(BayesFactor)
+lmBF(formula = kid_score ~ mom_iq, data = data_kidiq)
+```
+
+
+#### Diagnostik der Voraussetzungen für die Inferenzstatistik
+Diese Inferenzstatistiken sind nur unter Annahmen über den datengenerierenden Mechanismus berechenbar. Sind diese Annahmen verletzt sind die Inferenzstatistiken (mehr oder weniger stark) verzerrt. Daher nimmt die Diagnostik der Annahmen eine zentrale Bedeutung ein. Angenommen werden muss (mindestens)
+
+* Linearität der Beziehung
+* Normalverteilung der Residuen
+* Homoskedastizität der Residuen
+* Unabhängigkeit der Residuen 
+
+Eine gute Grundlage für die Diagnostik bietet das `{performance}`-package:
+```{r, cache=T}
+library(performance)
+check_model(mod01)
+```
+
+#### Interpretation
+> Regressionsmodelle beschreiben *immer* nur bedingte Erwartungswerte von Datenpunkten ("für eine Gruppe von Müttern deren IQ im Schnitt X ist, ist ein kid_score von X am wahrscheinlichsten"). Woher diese Wahrscheinlichkeit rührt und wie gut mit dieser eine kausale Relationierung von X und Y gerechtfertigt werden kann *hängt maßgeblich vom Design der Studie* ab! 
+
+### Modelle mit einem dichotomen Prädiktor (Dummyvariable)
+#### Parametrisierung
+Die Regression ist insofern ein recht universelles Modellierungstool, als dass es auch die Aufnahme dichotomer Prädiktoren erlaubt. Bspw. kann man mit der Variable `mom_hs` der `kid_score` prädizieren:
+```{r, cache=T}
+ggplot(data_kidiq, aes(mom_hs, kid_score)) + 
+  geom_point(alpha = .3) + 
+  stat_smooth(method = "lm", se = F) + 
+  theme_ipsum()
+```
+
+Die resultierenden Koeffizienten stellen die arithmetischen Mittelwerte der Gruppen dar und der p-Wert von $\beta_1$ tested die $H_0: EW(Gruppe_1) = EW(Gruppe_2)$.
+```{r, cache=T}
+mod03 <- lm(kid_score ~ mom_hs, data = data_kidiq)
+mod03
+```
+
+Wobei
+```{r echo = F, cache=T}
+extract_eq(mod03, intercept = "beta")
+```
+
+
+#### Diagnostik der Voraussetzungen für die Inferenzstatistik
+Da Regressionsmodelle mit Dummyvariablen eben auch Regressionsmodelle sind `r emo::ji("smiley")` gilt es auch bei diesen *dieselben* Voraussetzungen zu prüfen:
+```{r}
+check_model(mod03)
+```
+
+
+### Modelle mit mehreren Prädiktoren (multiple Regression)
+#### Parametrisierung
+In Regressionsmodelle können problemlos mehrere Prädiktoren aufgenommen werden. 
+```{r}
+mod04 <- lm(kid_score ~ mom_iq + mom_hs, data = data_kidiq)
+summary(mod04)
+``` 
+
+Grafisch kann dies dann im entsprechenden n-dimensionalen Raum repräsentiert werden (siehe Folien aus Universaltool Regressionsanalyse I). In der formalen Repräsentation wird schlicht das Polynom um einen Summanden erweitert:
+`r extract_eq(mod04, intercept = "beta")`
+
+#### Interpretation
+Besonders interessant an multiplen Regressionsmodellen ist, dass bestimmte kausale Mechanismen falsifiziert werden können. Dazu werden dann meist die Ergebnisse der einfachen Modelle (mit jeweils einem Prädiktor) mit den Parameterschätzungen im multiplen Modell verglichen:
+```{r}
+tab_model(mod01, mod03, mod04, show.ci = F)
+```
+So können Annahmen über Supressor- oder Konfounderkonstellationen falsifiziert werden. Hier etwa wird klar, dass die Daten mit dem Mechanismus A im Einklang stehen, nicht aber mit dem Mechanismus B.
+
+```{r, echo = F}
+library(ggdag)
+set.seed(12345)
+A <- dagify(kid_score ~ mom_iq + mom_hs,
+       labels = c("kid_score" = "Kid's Score", 
+                  "mom_iq" = "Mom's IQ",
+                  "mom_hs" = "Mom completed\nhigh school"))
+
+ggdag(A, text = FALSE, use_labels = "label") + 
+  theme_dag_blank() + 
+  ggtitle("Hypothetische kausale Relationierung A",
+          "Nicht im Einklang mit den Daten")
+
+
+B <- dagify(kid_score ~ mom_iq + mom_hs,
+            mom_iq ~~ mom_hs,
+       labels = c("kid_score" = "Kid's Score", 
+                  "mom_iq" = "Mom's IQ",
+                  "mom_hs" = "Mom completed\nhigh school"))
+
+ggdag(B, text = FALSE, use_labels = "label") + 
+  theme_dag_blank() + 
+  ggtitle("Hypothetische kausale Relationierung B",
+          "Im Einklang mit den Daten")
+
+C <- dagify(kid_score ~ mom_iq + mom_hs,
+            mom_iq ~ c,
+            mom_hs ~ c,
+       labels = c("kid_score" = "Kid's Score", 
+                  "mom_iq" = "Mom's IQ",
+                  "mom_hs" = "Mom completed\nhigh school",
+                  "c" = "Confounder"))
+
+ggdag(C, text = FALSE, use_labels = "label") + 
+  theme_dag_blank() + 
+  ggtitle("Hypothetische kausale Relationierung C",
+          "Im Einklang mit den Daten")
+```
+
+
+#### Diagnostik der Voraussetzungen für die Inferenzstatistik
+Auch Modelle der multiplen Regression unterleigen den gleichen 4 Annahmen. Hinzu kommt (je nach Methode der Schätzung), dass keine Kolinearität vorliegen sollte. `check_model()` nimmt dies Annahme direkt in die Prüfung mit auf, wenn das Argument der Funktion ein Modell mit mehreren Prädiktoren darstellt.
+
+```{r, cache=T}
+check_model(mod04)
+```
+
+
+### Modelle mit Interaktionseffekt eines metrischen und eines dichotomen Prädiktors
+Interessiert man sich dafür, wie sich 
+
+
+#### Parametrisierung 
+
+#### Diagnostik der Voraussetzungen für die Inferenzstatistik
+
+
+### Modelle mit Interaktionseffekt zweier metrischer Prädiktoren
+```{r}
+summary(lm(scale(kid_score) ~ scale(mom_iq):scale(mom_age), data = data_kidiq))
+```
+
+#### Parametrisierung
+
+#### Diagnostik der Voraussetzungen für die Inferenzstatistik
+
+
+
+## Übung: Multiple Regression mit Dummyvariablen
+
+### Datensatz 2: Effekte der Klassengröße
+Im STAR-Datensatz (Nye, Hedges, & Konstantopoulos, 1999) ist über einen Lehrerfragebogen auch die Wertzuschreibung der Schülerinnen und Schüler erfasst worden (g4ptvalu) (Beispielitems: This student thinks that school is important; This student criticizes the importance of the subject matter [rekodiert]; Antwortmöglichkeiten: 1 = Never, 2, 3 = Sometimes, 4, 5 = Always).
+In diesem Übungsbeispiel interessieren wir uns für den Effekt dieser Wertzuschreibung in Klasse 4 auf die Mathematikleistung in Klasse 4 g4tmathss unter Kontrolle der Mathematikleistung in Klasse 3 g3tmathss. Das Datensatzobjekt trägt den Namen data_star
+
+## Übung: Multiple Regression mit Interaktionseffekten
+### Datensatz 3: European study on family care of older people (efc)
+```{r}
+library(sjPlot)
+library(sjmisc)
+data(efc)
+load("data/DebTrivedi.rda")
+```
+
+
+## Übung: Demand for medical care
+
+
+## Literatur
+Cohen, J. (1988). Statistical power analysis for the behavioral sciences (2. Aufl.). Lawrence Erlbaum.
+Gelman, A., & Hill, J. (2007). Data analysis using regression and multilevel/hierarchical models. Cambridge University Press.
