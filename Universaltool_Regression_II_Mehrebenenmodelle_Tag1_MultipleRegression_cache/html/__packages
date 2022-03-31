@@ -7,11 +7,13 @@ purrr
 dplyr
 stringr
 forcats
-hrbrthemes
-equatiomatic
 sjPlot
 coda
 Matrix
 BayesFactor
+emo
+fontawesome
+hrbrthemes
+equatiomatic
 performance
 ggdag

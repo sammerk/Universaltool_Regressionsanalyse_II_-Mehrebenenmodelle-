@@ -23,7 +23,22 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(sjPlot)
 library(BayesFactor)
+library(emo)
+library(fontawesome)
 ```
+
+## Meine Gedanken zur Workshopgestaltung
+* Möglichst viel Aktivität bei den Teilnehmer\*innen
+    * Weniger Vorturnen, mehr selbst ausprobieren (und erstmal scheitern `r ji("smiley")`) 
+    * Ich zeige zunächst alles in `r fa(name = "r-project")`, jeder benutzt danach seine Lieblingssoftware ich helfe bei Fragen zu JASP/jamovi/SPSS/STATA/etc. dann so gut ich kann ...
+* Möglichst viel Interaktion
+    * Fragen zu Begriffen gerne direkt stellen
+    * Wünsche wiederholter/weiterer Erklärungen oder ELaborationen gerne direkt äußern
+    * Gerne Peer-to-Peer Interaktion in Break-Out-Rooms
+* Möglichst differenziertes Arbeiten
+    * Gestufte Lösungshilfen
+    * Break-Out-Rooms für "aktiv Modellierende" und "passiv Nachvollziehende"
+    * Kognitiv aktivierende Inputs die auf verschiedenen Verständnisebenen rezipiert werden können
 
 ## Worked Out Example: Interpretation multipler Regressionsmodelle 
 
@@ -50,7 +65,7 @@ data_kidiq <- read_delim("https://raw.githubusercontent.com/sammerk/did_data/mas
 haven::write_sav(data_kidiq, "data/data_kidiq.sav")
 ```
 
-Diejenigen, die nicht `r fontawesome::fa(name = "r-project")` nutzen wollen, können den Datensatz `r xfun::embed_file("data/data_kidiq.sav", "data_kidiq.sav", "hier")` im SPSS-Format herunterladen.
+Diejenigen, die nicht `r fa(name = "r-project")` nutzen wollen, können den Datensatz `r xfun::embed_file("data/data_kidiq.sav", "data_kidiq.sav", "hier")` im SPSS-Format herunterladen.
 
 ### Modelle mit einem metrischen Prädiktor
 #### Parametrisierung
@@ -155,7 +170,7 @@ extract_eq(mod03, intercept = "beta")
 
 
 #### Diagnostik der Voraussetzungen für die Inferenzstatistik
-Da Regressionsmodelle mit Dummyvariablen eben auch Regressionsmodelle sind `r emo::ji("smiley")` gilt es auch bei diesen *dieselben* Voraussetzungen zu prüfen:
+Da Regressionsmodelle mit Dummyvariablen eben auch Regressionsmodelle sind `r ji("smiley")` gilt es auch bei diesen *dieselben* Voraussetzungen zu prüfen:
 ```{r}
 check_model(mod03)
 ```
