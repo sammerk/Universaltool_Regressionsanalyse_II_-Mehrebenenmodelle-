@@ -7,6 +7,7 @@ output:
   rmdformats::downcute:
     code_folding: show
     self_contained: true
+    toc_depth: 4
     thumbnails: false
     lightbox: true
     downcute_theme: "chaos"
@@ -25,11 +26,14 @@ library(sjPlot)
 library(BayesFactor)
 library(emo)
 library(fontawesome)
+library(hrbrthemes)
+library(haven)
+library(equatiomatic)
 ```
 
 ## Meine Gedanken zur Workshopgestaltung
 * Möglichst viel Aktivität bei den Teilnehmer\*innen
-    * Weniger Vorturnen, mehr selbst ausprobieren (und erstmal scheitern `r ji("smiley")`) 
+    * Weniger Vorturnen durch mich, mehr selbst ausprobieren (und erstmal scheitern `r ji("smiley")`) 
     * Ich zeige zunächst alles in `r fa(name = "r-project")`, jeder benutzt danach seine Lieblingssoftware ich helfe bei Fragen zu JASP/jamovi/SPSS/STATA/etc. dann so gut ich kann ...
 * Möglichst viel Interaktion
     * Fragen zu Begriffen gerne direkt stellen
@@ -39,6 +43,10 @@ library(fontawesome)
     * Gestufte Lösungshilfen
     * Break-Out-Rooms für "aktiv Modellierende" und "passiv Nachvollziehende"
     * Kognitiv aktivierende Inputs die auf verschiedenen Verständnisebenen rezipiert werden können
+* Materials
+    * Datensätze aus .html downloadbar
+    * Für git-userinnen https://github.com/sammerk/Universaltool_Regressionsanalyse_II_-Mehrebenenmodelle-.git
+    * Die Dokumentation kann im Browser unter https://bit.ly/merk035 abgerufen werden. Alle Veränderungen werden dort auch sichtbar
 
 ## Worked Out Example: Interpretation multipler Regressionsmodelle 
 
@@ -171,7 +179,7 @@ extract_eq(mod03, intercept = "beta")
 
 #### Diagnostik der Voraussetzungen für die Inferenzstatistik
 Da Regressionsmodelle mit Dummyvariablen eben auch Regressionsmodelle sind `r ji("smiley")` gilt es auch bei diesen *dieselben* Voraussetzungen zu prüfen:
-```{r}
+```{r cache = T}
 check_model(mod03)
 ```
 
@@ -192,7 +200,7 @@ Besonders interessant an multiplen Regressionsmodellen ist, dass bestimmte kausa
 ```{r}
 tab_model(mod01, mod03, mod04, show.ci = F)
 ```
-So können Annahmen über Supressor- oder Konfounderkonstellationen falsifiziert werden. Hier etwa wird klar, dass die Daten mit dem Mechanismus A im Einklang stehen, nicht aber mit dem Mechanismus B.
+So können Annahmen über Supressor- oder Konfounderkonstellationen falsifiziert werden. Hier etwa wird klar, dass die Daten mit dem Mechanismus A nicht im Einklang stehen, aber mit dem Mechanismus B und C.
 
 ```{r, echo = F}
 library(ggdag)
@@ -235,15 +243,69 @@ ggdag(C, text = FALSE, use_labels = "label") +
 
 
 #### Diagnostik der Voraussetzungen für die Inferenzstatistik
-Auch Modelle der multiplen Regression unterleigen den gleichen 4 Annahmen. Hinzu kommt (je nach Methode der Schätzung), dass keine Kolinearität vorliegen sollte. `check_model()` nimmt dies Annahme direkt in die Prüfung mit auf, wenn das Argument der Funktion ein Modell mit mehreren Prädiktoren darstellt.
+Auch Modelle der multiplen Regression unterliegen den gleichen 4 Annahmen. Hinzu kommt (je nach Methode der Schätzung), dass keine Kolinearität vorliegen sollte. `check_model()` nimmt dies Annahme direkt in die Prüfung mit auf, wenn das Argument der Funktion ein Modell mit mehreren Prädiktoren darstellt.
 
 ```{r, cache=T}
 check_model(mod04)
 ```
 
+Typischerweise werden dann wieder p-Werte für die Hypothesen $\beta_i = 0$ und $ R^2 = 0$ berechnet.  
+Bayes Faktoren beziehen sich jedoch immer auf das inkrementelle $R^2$, also die Frage: Klärt ein Prädiktor oder eine Gruppe von Prädiktoren zuätzliche Varianz auf?
+
+```{r}
+# Test gegen intercept only modell
+lmBF(formula = kid_score ~ mom_iq + mom_hs, data = data_kidiq)
+
+# Test gegen Modell mit mom_hs als Prädiktor
+lmBF(formula = kid_score ~ mom_iq + mom_hs, data = data_kidiq)/
+  lmBF(formula = kid_score ~ mom_hs, data = data_kidiq)
+
+# Test gegen Modell mit mom_iq als Prädiktor
+lmBF(formula = kid_score ~ mom_iq + mom_hs, data = data_kidiq)/
+  lmBF(formula = kid_score ~ mom_iq, data = data_kidiq)
+```
+
 
 ### Modelle mit Interaktionseffekt eines metrischen und eines dichotomen Prädiktors
-Interessiert man sich dafür, wie sich 
+Interessiert man sich dafür, wie sich die Effekte je nach Ausprägung einer weiteren nominalen Variablen unterscheiden, kann man Modelle mit Interaktionen eines metrischen und eines dichotomen Prädiktors spezifizieren. 
+```{r}
+ggplot(data_kidiq, aes(mom_iq, kid_score, 
+                       color = as.factor(mom_hs), 
+                       group = as.factor(mom_hs))) + 
+  geom_point() + 
+  stat_smooth(method = "lm") + 
+  theme_ipsum()
+```
+Die entsprechenden Koeffizienten des Modells mit Interaktionseffekt sind jedoch wesentlich schwieriger zu interpretieren:  
+```{r}
+mod05 <- lm(kid_score ~ mom_hs + mom_iq + mom_hs:mom_iq, data = data_kidiq)
+mod05
+```
+
+`r extract_eq(mod05)`
+
+Leichter wird dies, wenn man den kontinuierlichen Prädiktor zentriert oder standardisiert.
+
+```{r}
+library(equatiomatic)
+data_kidiq <- data_kidiq %>% 
+  mutate(mom_iq_centered = scale(mom_iq, center = T, scale = F),
+         mom_iq_zstand = scale(mom_iq, center = T, scale = T))
+
+mod06 <- lm(kid_score ~ mom_hs + mom_iq_zstand + mom_hs:mom_iq_zstand, data = data_kidiq)
+
+mod06
+
+ggplot(data_kidiq, aes(mom_iq_zstand, kid_score, 
+                       color = as.factor(mom_hs), 
+                       group = as.factor(mom_hs))) + 
+  geom_point() + 
+  stat_smooth(method = "lm") + 
+  theme_ipsum()
+
+extract_eq(mod06)
+```
+
 
 
 #### Parametrisierung 
@@ -284,3 +346,14 @@ load("data/DebTrivedi.rda")
 ## Literatur
 Cohen, J. (1988). Statistical power analysis for the behavioral sciences (2. Aufl.). Lawrence Erlbaum.
 Gelman, A., & Hill, J. (2007). Data analysis using regression and multilevel/hierarchical models. Cambridge University Press.
+
+
+<style>
+.page-content .code-mask code, .page-content pre code {
+    font-size: .9em !important;
+}
+
+.MathJax span {
+    font-size: 100%;
+}
+</style>
