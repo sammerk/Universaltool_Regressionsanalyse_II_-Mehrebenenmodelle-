@@ -47,7 +47,7 @@ library(performance)
     * Kognitiv aktivierende Inputs die auf verschiedenen Verständnisebenen rezipiert werden können
 * Materials
     * Datensätze aus .html downloadbar
-    * Für `r fa("github")`-Userinnen gibt es hier das komplette RStudio Projekt: https://github.com/sammerk/Universaltool_Regressionsanalyse_II_-Mehrebenenmodelle-.git
+    * Für `r fa("github")`-Userinnen gibt es hier das komplette RStudio-Projekt: https://github.com/sammerk/Universaltool_Regressionsanalyse_II_-Mehrebenenmodelle-.git
     * Die Dokumentation kann im Browser unter https://bit.ly/merk035 abgerufen werden. Alle Veränderungen werden dort auch sichtbar
     * Real World Data (führt oft zu Softwareproblemen etc. aber das entspricht der Realität)
     
@@ -55,7 +55,7 @@ library(performance)
 # Worked Out Example: Interpretation multipler Regressionsmodelle 
 
 ## Datensatz 1: Kid IQ
-Der Datensatz Kid IQ stammt aus einem der empfohlenen Lehrbücher(Gelman & Hill, 2007). Ursprünglich stammt er aus der National Longitudinal Survey of Youth. Wir werden die folgenden Variablen Nutzen:
+Der Datensatz "Kid IQ" stammt aus einem der empfohlenen Lehrbücher (Gelman & Hill, 2007). Ursprünglich stammt er aus der National Longitudinal Survey of Youth. Wir werden die folgenden Variablen Nutzen:
 
 * kid_score = Rohwert des Kidnes in einem Intelligenztest
 * mom_hs = Dummyvariable Highschoolabhschluss (1 = Highschoolabschluss, 0 = kein Highschoolabschluss)
@@ -560,7 +560,7 @@ cor(data_medcaredemand$numchron, data_medcaredemand$ofp, method = "spearman")
 ### Fragestellung 
 > Wie stark sind die beiden Variablen `numchron` und `ofp` assoziiert?
 
-#### Lösung
+### Lösung
 ```{r cache = T}
 mod14 <- lm(ofp ~ numchron, data = data_medcaredemand)
 tab_model(mod14, show.std = T)
@@ -590,7 +590,7 @@ Nye, B., Hedges, L. V., & Konstantopoulos, S. (1999). The long-term effects of s
 
 <style>
 .page-content .code-mask code, .page-content pre code {
-    font-size: .9em !important;
+    font-size: 1.15em !important;
 }
 
 .MathJax span {
