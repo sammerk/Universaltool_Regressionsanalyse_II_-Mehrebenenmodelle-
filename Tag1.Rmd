@@ -1,0 +1,595 @@
+---
+title: "Universaltool Regressionsanalyse II (Mehrebenenmodelle)"
+subtitle: "Tag 1: Multiple Regression"
+author: "Samuel Merk"
+date: "01.04.2022"
+output: 
+  rmdformats::downcute:
+    code_folding: show
+    self_contained: true
+    toc_depth: 4
+    thumbnails: false
+    lightbox: true
+    downcute_theme: "chaos"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, echo=FALSE, results='hide', message=FALSE, warning=FALSE}
+library(tidyverse)
+library(sjPlot)
+library(BayesFactor)
+library(emo)
+library(fontawesome)
+library(hrbrthemes)
+library(haven)
+library(equatiomatic)
+library(performance)
+```
+
+# Meine Gedanken zur Workshopgestaltung
+* Möglichst viel Aktivität bei den Teilnehmer\*innen
+    * Weniger Vorturnen durch mich, mehr selbst ausprobieren (und erstmal scheitern `r ji("smiley")`) 
+    * Ich zeige zunächst alles in `r fa(name = "r-project")`, jeder benutzt danach seine Lieblingssoftware - ich helfe bei Fragen zu JASP/jamovi/SPSS/STATA/etc. so gut ich kann ...
+* Möglichst viel Interaktion
+    * Fragen zu Begriffen gerne direkt stellen
+    * Wünsche wiederholter/weiterer Erklärungen oder Elaborationen gerne direkt äußern
+    * Gerne Peer-to-Peer Interaktion in Break-Out-Rooms
+    * Gemeinsames Interpretieren der Lehrbuchtexte (in Sitzung 2)
+* Möglichst differenziertes Arbeiten
+    * Gestufte Lösungshilfen
+    * Break-Out-Rooms für "aktiv Modellierende" und "passiv Nachvollziehende"
+    * Kognitiv aktivierende Inputs die auf verschiedenen Verständnisebenen rezipiert werden können
+* Materials
+    * Datensätze aus .html downloadbar
+    * Für `r fa("github")`-Userinnen gibt es hier das komplette RStudio-Projekt: https://github.com/sammerk/Universaltool_Regressionsanalyse_II_-Mehrebenenmodelle-.git
+    * Die Dokumentation kann im Browser unter https://bit.ly/merk035 abgerufen werden. Alle Veränderungen werden dort auch sichtbar
+    * Real World Data (führt oft zu Softwareproblemen etc. aber das entspricht der Realität)
+    
+
+# Worked Out Example: Interpretation multipler Regressionsmodelle 
+
+## Datensatz 1: Kid IQ
+Der Datensatz "Kid IQ" stammt aus einem der empfohlenen Lehrbücher (Gelman & Hill, 2007). Ursprünglich stammt er aus der National Longitudinal Survey of Youth. Wir werden die folgenden Variablen Nutzen:
+
+* kid_score = Rohwert des Kidnes in einem Intelligenztest
+* mom_hs = Dummyvariable Highschoolabhschluss (1 = Highschoolabschluss, 0 = kein Highschoolabschluss)
+* mom_iq = IQ der Mutter
+* mom_age = Alter der Mutter
+* mom_work = 
+    * 1: mother did not work in first three years of child’s life 
+    * 2: mother worked in second or third year of child’s life 
+    * 3: mother worked part-time in first year of child’s life 
+    * 4: mother worked full-time in first year of child’s life
+
+### Import der Daten
+```{r, cache=T, message=FALSE, results='hide'}
+library(tidyverse)
+data_kidiq <- read_delim("https://raw.githubusercontent.com/sammerk/did_data/master/kidiq.csv", delim = ";")
+```
+
+```{r, echo = F, results='hide', cache=T}
+haven::write_sav(data_kidiq, "data/data_kidiq.sav")
+```
+
+Diejenigen, die nicht `r fa(name = "r-project")` nutzen wollen, können den Datensatz `r xfun::embed_file("data/data_kidiq.sav", "data_kidiq.sav", "hier")` im SPSS-Format herunterladen.
+
+## Modelle mit einem metrischen Prädiktor
+### Parametrisierung
+Zunächst soll der `kid_score` mit der metrischen Variable `mom_iq` prädiziert werden. In `r fontawesome::fa(name = "r-project")` erfolgt das mit der Syntax
+
+```{r, cache=T}
+mod01 <- lm(kid_score ~ mom_iq, data = data_kidiq)
+mod01
+```
+
+Grafisch kann dieses Modell wie folgt repräsentiert werden:
+```{r, cache=T}
+library(hrbrthemes)
+data_kidiq %>% 
+  ggplot(., aes(mom_iq, kid_score)) + 
+  geom_point() + 
+  stat_smooth(method = "lm", se = F) + 
+  theme_ipsum()
+```
+
+Und die formale Beschreibung lautet:
+
+```{r echo = F, cache=T}
+library(equatiomatic)
+extract_eq(mod01, use_coefs = T, intercept = "beta")
+```
+
+
+Da der `kid_score` offensichtlich nicht einer Standardskalierung (z-Werte, IQ-Werte, t-Werte, ...) entspricht, kann die Stärke des Effekts nur anhand einer Standardisierung bewertet werden.
+```{r, cache=T}
+mod02 <- lm(scale(kid_score) ~ scale(mom_iq), data = data_kidiq)
+mod02
+```
+
+Dies leisten auch packages wie `{sjPlot}` oder `{stargazer}` die darüber hinaus auch noch mehrere Modelle vergleichend darstellen können.
+```{r, cache=T, message=FALSE}
+library(sjPlot)
+tab_model(mod01, show.std = T, show.ci = F, show.p = F)
+```
+
+Nach Cohen (1988) gilt dabei:
+
+* $\beta \approx .1 \Rightarrow \text{kleiner Effekt}$ 
+* $\beta \approx .3 \Rightarrow \text{moderater Effekt}$
+* $\beta \approx .5 \Rightarrow \text{starker Effekt}$
+
+### Inferenzstatistik
+Unser $\beta = .45$ beschreibt lediglich die Steigung einer Geraden, wenn man diese nach dem Kriterium der kleinsten Quadrate auf dem Datensatz `kid_iq` optimiert. Möchte man Schlussfolgerungen über den datengenerierenden Mechanismus anstellen benötigt man Inferenzstatistik.  
+p-Werte kann man etwa anhand der `summary()`-Funktion oder der `tab_model()` Funktion erhalten. 
+```{r, cache=T}
+summary(mod01)
+```
+Dabei sind zwei Inferenzstatistiken enthalten:
+
+1) Jeder Koeffizient $\beta_i$ wird gegen die 0 getestet.
+2) Das Gesamtmodell wird gegen $R^2 = 0$ getestet.
+
+JZS-Bayes-Faktoren sind via `{BayesFactor}` ermittelbar:
+```{r, cache=T, message=FALSE, warning=FALSE}
+library(BayesFactor)
+lmBF(formula = kid_score ~ mom_iq, data = data_kidiq)
+```
+
+
+### Diagnostik der Voraussetzungen für die Inferenzstatistik
+Diese Inferenzstatistiken sind nur unter Annahmen über den datengenerierenden Mechanismus berechenbar. Sind diese Annahmen verletzt sind die Inferenzstatistiken (mehr oder weniger stark) verzerrt. Daher nimmt die Diagnostik der Annahmen eine zentrale Bedeutung ein. Angenommen werden muss (mindestens)
+
+* Linearität der Beziehung
+* Normalverteilung der Residuen
+* Homoskedastizität der Residuen
+* Unabhängigkeit der Residuen 
+
+Eine gute Grundlage für die Diagnostik bietet das `{performance}`-package:
+```{r, cache=T, fig.height=10}
+library(performance)
+check_model(mod01)
+```
+
+### Interpretation
+> Regressionsmodelle beschreiben *immer* nur bedingte Erwartungswerte von Datenpunkten ("für eine Gruppe von Müttern deren IQ im Schnitt X ist, ist ein kid_score von X am wahrscheinlichsten"). Woher diese Wahrscheinlichkeit rührt und wie gut mit dieser eine kausale Relationierung von X und Y gerechtfertigt werden kann *hängt maßgeblich vom Design der Studie* ab! 
+
+## Modelle mit einem dichotomen Prädiktor (Dummyvariable)
+### Parametrisierung
+Die Regression ist insofern ein recht universelles Modellierungstool, als dass es auch die Aufnahme dichotomer Prädiktoren erlaubt. Bspw. kann man mit der Variable `mom_hs` der `kid_score` prädizieren:
+```{r, cache=T}
+ggplot(data_kidiq, aes(mom_hs, kid_score)) + 
+  geom_point(alpha = .3) + 
+  stat_smooth(method = "lm", se = F) + 
+  theme_ipsum()
+```
+
+Die resultierenden Koeffizienten stellen die arithmetischen Mittelwerte der Gruppen dar und der p-Wert von $\beta_1$ tested die $H_0: EW(Gruppe_1) = EW(Gruppe_2)$.
+```{r, cache=T}
+mod03 <- lm(kid_score ~ mom_hs, data = data_kidiq)
+mod03
+```
+
+Wobei
+```{r echo = F, cache=T}
+extract_eq(mod03, intercept = "beta")
+```
+
+
+### Diagnostik der Voraussetzungen für die Inferenzstatistik
+Da Regressionsmodelle mit Dummyvariablen eben auch Regressionsmodelle sind `r ji("smiley")` gilt es auch bei diesen *dieselben* Voraussetzungen zu prüfen:
+```{r cache = T, fig.height=10}
+check_model(mod03)
+```
+
+
+## Modelle mit mehreren Prädiktoren (multiple Regression)
+### Parametrisierung
+In Regressionsmodelle können problemlos mehrere Prädiktoren aufgenommen werden. 
+```{r cache = T}
+mod04 <- lm(kid_score ~ mom_iq + mom_hs, data = data_kidiq)
+summary(mod04)
+``` 
+
+Grafisch kann dies dann im entsprechenden n-dimensionalen Raum repräsentiert werden (siehe Folien aus Universaltool Regressionsanalyse I). In der formalen Repräsentation wird schlicht das Polynom um einen Summanden erweitert:
+`r extract_eq(mod04, intercept = "beta")`
+
+### Interpretation
+Besonders interessant an multiplen Regressionsmodellen ist, dass bestimmte kausale Mechanismen falsifiziert werden können. Dazu werden dann meist die Ergebnisse der einfachen Modelle (mit jeweils einem Prädiktor) mit den Parameterschätzungen im multiplen Modell verglichen:
+```{r cache = T}
+tab_model(mod01, mod03, mod04, show.ci = F)
+```
+So können Annahmen über Supressor- oder Konfounderkonstellationen falsifiziert werden. Hier etwa wird klar, dass die Daten mit dem Mechanismus A nicht im Einklang stehen, aber mit dem Mechanismus B und C.
+
+```{r cache = T, echo = F}
+library(ggdag)
+set.seed(12345)
+A <- dagify(kid_score ~ mom_iq + mom_hs,
+       labels = c("kid_score" = "Kid's Score", 
+                  "mom_iq" = "Mom's IQ",
+                  "mom_hs" = "Mom completed\nhigh school"))
+
+ggdag(A, text = FALSE, use_labels = "label") + 
+  theme_dag_blank() + 
+  ggtitle("Hypothetische kausale Relationierung A",
+          "Nicht im Einklang mit den Daten")
+
+
+B <- dagify(kid_score ~ mom_iq + mom_hs,
+            mom_iq ~~ mom_hs,
+       labels = c("kid_score" = "Kid's Score", 
+                  "mom_iq" = "Mom's IQ",
+                  "mom_hs" = "Mom completed\nhigh school"))
+
+ggdag(B, text = FALSE, use_labels = "label") + 
+  theme_dag_blank() + 
+  ggtitle("Hypothetische kausale Relationierung B",
+          "Im Einklang mit den Daten")
+
+C <- dagify(kid_score ~ mom_iq + mom_hs,
+            mom_iq ~ c,
+            mom_hs ~ c,
+       labels = c("kid_score" = "Kid's Score", 
+                  "mom_iq" = "Mom's IQ",
+                  "mom_hs" = "Mom completed\nhigh school",
+                  "c" = "Confounder"))
+
+ggdag(C, text = FALSE, use_labels = "label") + 
+  theme_dag_blank() + 
+  ggtitle("Hypothetische kausale Relationierung C",
+          "Im Einklang mit den Daten")
+```
+
+
+### Diagnostik der Voraussetzungen für die Inferenzstatistik
+Auch Modelle der multiplen Regression unterliegen den gleichen 4 Annahmen. Hinzu kommt (je nach Methode der Schätzung), dass keine Kolinearität vorliegen sollte. `check_model()` nimmt dies Annahme direkt in die Prüfung mit auf, wenn das Argument der Funktion ein Modell mit mehreren Prädiktoren darstellt.
+
+```{r, cache=T, fig.height=10}
+check_model(mod04)
+```
+
+Typischerweise werden dann wieder p-Werte für die Hypothesen $\beta_i = 0$ und $ R^2 = 0$ berechnet.  
+Bayes Faktoren beziehen sich jedoch immer auf das inkrementelle $R^2$, also die Frage: Klärt ein Prädiktor oder eine Gruppe von Prädiktoren zuätzliche Varianz auf?
+
+```{r cache = T}
+# Test gegen intercept only modell
+lmBF(formula = kid_score ~ mom_iq + mom_hs, data = data_kidiq)
+
+# Test gegen Modell mit mom_hs als Prädiktor
+lmBF(formula = kid_score ~ mom_iq + mom_hs, data = data_kidiq)/
+  lmBF(formula = kid_score ~ mom_hs, data = data_kidiq)
+
+# Test gegen Modell mit mom_iq als Prädiktor
+lmBF(formula = kid_score ~ mom_iq + mom_hs, data = data_kidiq)/
+  lmBF(formula = kid_score ~ mom_iq, data = data_kidiq)
+```
+
+
+## Modelle mit Interaktionseffekt eines metrischen und eines dichotomen Prädiktors
+### Parametrisierung 
+Interessiert man sich dafür, wie sich die Effekte je nach Ausprägung einer weiteren nominalen Variablen unterscheiden, kann man Modelle mit Interaktionen eines metrischen und eines dichotomen Prädiktors spezifizieren. 
+```{r cache = T}
+ggplot(data_kidiq, aes(mom_iq, kid_score, 
+                       color = as.factor(mom_hs), 
+                       group = as.factor(mom_hs))) + 
+  geom_point() + 
+  stat_smooth(method = "lm") + 
+  theme_ipsum()
+```
+Die entsprechenden Koeffizienten des Modells mit Interaktionseffekt sind jedoch wesentlich schwieriger zu interpretieren:  
+```{r cache = T}
+mod05 <- lm(kid_score ~ mom_hs + mom_iq + mom_hs:mom_iq, data = data_kidiq)
+mod05
+```
+
+`r extract_eq(mod05)`
+
+Leichter wird dies, wenn man den kontinuierlichen Prädiktor zentriert oder standardisiert.
+
+```{r cache = T}
+library(equatiomatic)
+data_kidiq <- data_kidiq %>% 
+  mutate(mom_iq_centered = as.numeric(scale(mom_iq, center = T, scale = F)),
+         mom_iq_zstand = as.numeric(scale(mom_iq, center = T, scale = T)),
+         mom_age_zstand = as.numeric(scale(mom_age, center = T, scale = T)))
+
+mod06 <- lm(kid_score ~ mom_hs + mom_iq_zstand + mom_hs:mom_iq_zstand, data = data_kidiq)
+
+mod06
+
+ggplot(data_kidiq, aes(mom_iq_zstand, kid_score, 
+                       color = as.factor(mom_hs), 
+                       group = as.factor(mom_hs))) + 
+  geom_point() + 
+  stat_smooth(method = "lm") + 
+  theme_ipsum()
+
+extract_eq(mod06, use_coefs = T, terms_per_line = 2, wrap = T)
+```
+
+
+#### Diagnostik der Voraussetzungen für die Inferenzstatistik
+Auch hier gelten dieselben Annahmen, die wieder gut mit `check_model()` evaluierbar sind:
+```{r cache = T, fig.height=10, fig.height=10}
+check_model(mod06)
+```
+
+
+## Modelle mit Interaktionseffekt zweier metrischer Prädiktoren
+Betrachtet man Modelle mit Interaktionen zwischen zwischen zwei metrischen Variablen, sind diese am besten interpretierbar, wenn beide zentriert sind.  
+```{r cache = T}
+mod07 <- lm(kid_score ~ mom_iq_zstand*mom_age_zstand, data = data_kidiq)
+mod07
+
+extract_eq(mod07, use_coefs = T, wrap = T)
+```
+In diesen Modellen können dann die sogenannten Haupteffekte, also die $\beta_i$ der einfachen Summanden ohne multiplikative Terme (hier $\beta_1$ und $\beta_2$) als die Effekte der Variable $i$ gesehen werden, wenn die andere Variable eine durchschnittliche Ausprägung (nach Zentrierung = 0) hat.
+
+Richtig hübsch geplottet wird das per default mit der Funktion `plot_model()`
+```{r cache = T}
+plot_model(mod07, type = "int") +
+  theme_ipsum()
+```
+
+
+# Übung: Multiple Regression mit Dummyvariablen
+
+## Datensatz 2: Effekte der Klassengröße und Wertzuschreibung
+```{r cache = T, echo = F, cache = T, results='hide'}
+data_star <- read_spss("https://raw.githubusercontent.com/sammerk/did_data/master/STAR.sav") 
+write_sav(data_star, "data/data_star.sav")
+```
+Das Student Teacher Achievement Ratio (STAR) Projekt ist eines der größten Experimente zu Effekten der Klassengrößenreduktion auf die Schüler\*innenleistung. Die Klassen wurden randomisiert drei Bedingungen zugewiesen: Große Klasse, kleine Klasse, große Klasse mit Hilfslehrkraft. Für die dritte Klasse findet sich diese Information in der Variable `g3classtype` (1 = SMALL CLASS, 2 = REGULAR CLASS, 3 = REGULAR + AIDE CLASS). Außerdem wurde über einen Lehrerfragebogen die Wertzuschreibung der Schülerinnen und Schüler erfasst. Im Datensatz ist die Variable mit dem Kürzel `g4ptvalu` zu finden. Ein Beispielitem lautet _This student thinks that school is important_ mit den  Antwortmöglichkeiten 1 = Never, 2, 3 = Sometimes, 4, 5 = Always.  Die Mathematikleistung ist für die dritte und vierte Klasse in den Variablen `g3tmathss` und `g4tmathss` enkodiert.
+
+Die Daten können wie folgt heruntergeladen werden (ein .sav-fiel gibt es `r xfun::embed_file("data/data_star.sav", "data_star.sav", "hier")`)
+```{r cache = T, eval = F}
+data_star <- read_spss("https://raw.githubusercontent.com/sammerk/did_data/master/STAR.sav") 
+```
+
+## Fragestellung 1 {.tabset}
+Mein Vorschlage wäre zunächst die folgende Fragestellung zu bearbeiten (Lösungshinweise und die Musterlösung sind dann jeweils hinter den Tabsets zu finden)
+
+### Fragestellung
+> Welchen Effekt zeigt die Klassengrößenreduktion auf die Mathematikleistung? Schätzen Sie die Effekte, evaluieren Sie Effektstärken und Inferenzstatistiken und überlegen inwiefern die Effekte kausal interpretiert werden können.
+
+### Modellierung {.tabset}
+
+#### Hinweis 1
+Doe Klassengröße `g4classsize` stellt ja einen nominalen Prädiktor mit 3 Ausprägungen dar. Daher macht ein Regressionsmodell mit zwei Dummyvariablen sinnd
+
+#### Lösung
+```{r cache = T}
+mod08 <- lm(g3tmathss ~ as.factor(g3classtype), data = data_star)
+summary(mod08)
+```
+
+
+### Modellinterpretation
+Das Intercept stellt das arithmetische Mittel in der Referenzgruppe - also den kleinen Klassen - dar. Die Slopes die Abweichungen der Mittelwerte der anderen Gruppen von diesen Mittelwerten. Große Klassen und große klassen mit Hilfslehrkraft performen also signifikant schlechter, wobei die Effekte nach Cohen klein sind und dekriptiv kein Unterschied zwischen den beiden großen Klassentypen zu sehen ist.
+
+### Modelldiagnostik
+```{r, cache = T, fig.height=10}
+check_model(mod08)
+```
+Normality sieht ganz gut aus. Die großen Abstände und CI bei Linearity und Homogenity rphren von der Dummykodierung, sind aber auch unproblematisch.  
+Problematisch ist aber der Mehrebenenkontext (Schüler\*innen in Klassen etc.). Dies führt zu einer Abhängigkeit der Residuen welche man etwa mit dem ICC1 quantifizieren kann (siehe nächste Sitzung).
+```{r cache = T}
+psychometric::ICC1.lme(g3tmathss, g3schid, data = data_star)
+```
+
+
+## Fragestellung 2 {.tabset}
+
+### Fragestellung
+> Welchen prädiktiven Effekt zeigt die Wertzuschreibung in Klasse 4 `g4ptvalu` auf die Mathematikleistung in Klasse 4 (Variable `g4tmathss` unter Kontrolle der Mathematikleistung in Klasse 3 (Variable `g3tmathss`)? Schätzen Sie die Effekte, evaluieren Sie Effektstärken und Inferenzstatistiken und überlegen Sie welche hypothetischen Kausalmechanismen Sie mit den Daten widerlegen/belegen können.
+
+
+### Modellierung {.tabset}
+
+#### Hinweis 1
+Die Formulierung "unter Kontrolle von" ist typisch für multiple Regressionsmodelle. Um potentiell Confounding oder Suppression Konstellationen finden zu können, macht es Sinn, erst einfache Regressionen mit den Prädiktoren zu schätzen und dann ein Modell, das beide Prädiktoren enthält.
+
+#### Lösung
+```{r cache = T}
+mod09 <- lm(g4tmathss ~ g3tmathss, data = data_star)
+mod10 <- lm(g4tmathss ~ g4ptvalu, data = data_star)
+mod11 <- lm(g4tmathss ~ g3tmathss + g4ptvalu, data = data_star)
+
+tab_model(mod09, mod10, mod11, show.ci = F, show.std = T)
+```
+
+
+### Modellinterpretation
+Der Effekt der Wertzuschreibung sinkt beträchtlich unter Hinzunahme der Leistung in Klasse drei, wohingegen die prädiktive Kraft der Leistung in Klasse 3 unter Hinzunahme der Wertvariable kaum sinkt.  
+Dies ist im Einklang mit der Annahme, dass der Effekt der Wertvariable durch die Leistungs in Klasse vier konfundiert ist.
+```{r cache = T}
+set.seed(12345)
+D <- dagify(L4 ~ W4 + L3,
+            W4 ~ L3)
+
+ggdag(D) + 
+  theme_dag_blank() + 
+  ggtitle("Konfundierung des Effekt der Wertzuschreibung auf die Leistung in Klasse 4", "durch die Lesitung in Klasse 3")
+```
+
+Jedoch stehen die Daten auch mit einem Modell in Einklang, indem die Wertzuschreibung und die Leistung von einer weiteren unbeobachteten Variable beeinflusst sind.
+
+```{r cache = T}
+set.seed(12345)
+E <- dagify(L4 ~ W4 + L3,
+            W4 ~ U,
+            L3 ~ U)
+
+ggdag(E) + 
+  theme_dag_blank() + 
+  ggtitle("Wertzuschreibung und die Leistung in Klasse 4", "sind von einer weiteren unbeobachteten Variable beeinflusst")
+```
+
+### Modelldiagnostik
+```{r cache = T, cache = T, fig.height=10}
+check_model(mod11)
+```
+Auch hier ist die Mehrebenenkonstellation wieder das zentrale Problem und leider nicht in den Plots sichtbar.
+
+
+
+# Übung: Multiple Regression mit Interaktionseffekten
+```{r cache = T, echo = F, cache = T, results='hide'}
+library(sjPlot)
+library(sjmisc)
+data(efc)
+write_sav(efc, "data/data_efc.sav")
+```
+
+## Datensatz 3: European study on family care of older people (efc)
+Aus dem Datensatz der [European study on family care of older people](https://www.uke.de/extern/eurofamcare/presentation.php) wollen wir die Variablen  `c12hour` `barthtot` und `c161sex` betrachten. `neg_c_7` misst den negativen Impact der Pflegeaufgabe mit einer Skala, die aus 7 Likert Items (z.B. _Does caregiving have a negative effect on your emotional well-being?_, Balducci et al., 2008) besteht. `c12hour` stellt die durchschnittliche Anzahl Pflegearbeit pro Woche dar und `barthtot` den sogenannten [Barthel Index](https://www.pschyrembel.de/Barthel-Index/K00TK). Dieser beschreibt inwiefern Aktivitäten des täglichen Lebens eingeschränkt sind (größere Werte = größere Einschränkungen). `c161sex` stellt eine dichotome Gendererfassung (1 = Male, 2 = Female) dar.
+
+
+Die Daten können wie folgt heruntergeladen werden (ein .sav-file gibt es `r xfun::embed_file("data/data_efc.sav", "data_efc.sav", "hier")`)
+```{r cache = T, eval = T}
+data_efc <- read_spss("https://raw.githubusercontent.com/sammerk/did_data/master/data_efc.sav") 
+```
+
+## Fragestellung 1 {.tabset}
+### Fragestellung 
+> Gibt es _differentielle Effekte_ des Pflegeumfangs auf den negativen Impact je Geschlecht?
+
+### Modellierung {.tabset}
+
+#### Hinweis 1
+Die Formulierung "differentieller Effekt" kann grafisch als unterschiedlich stark steigende Regressionsgeraden je Geschlecht interpretiert werden. Dies erzielt man durch multiplikation der beiden Prädiktoren.
+
+#### Hinweis 2
+Wichtig kann dabei sein, die Variablen zu rekodieren. c161sex ist bspw. mit 1 und 2 kodiert und c12hour hat eine natürliche Metrik.
+
+#### Lösung
+```{r cache = T}
+mod12 <- lm(neg_c_7 ~ scale(c12hour)*as.factor(c161sex), data = data_efc)
+summary(mod12)
+```
+
+### Modellinterpretation
+Während `c12hour` einen signifikanten Effekt moderater Größe zeigt, ist dies für die Gendervariable und deren Interaktion nicht der Fall. Aber Achtung: Dies ist keine Evidenz für die Abwesenheit dieser Effekte. Selbige kann man durch folgende BF erhalten:
+```{r cache = T}
+lmBF(formula = neg_c_7 ~ c12hour_zstand*c161sex_I,
+     data = data_efc %>% 
+       select(neg_c_7, c12hour, c161sex) %>% 
+       mutate(c161sex_I = c161sex - 1,
+              c12hour_zstand = as.numeric(scale(c12hour))) %>% 
+       na.omit()) /
+  lmBF(formula = neg_c_7 ~ c12hour_zstand,
+     data = data_efc %>% 
+       select(neg_c_7, c12hour, c161sex) %>% 
+       mutate(c161sex_I = c161sex - 1,
+              c12hour_zstand = as.numeric(scale(c12hour))) %>% 
+       na.omit()) 
+```
+
+
+Die Funktion `lmBF()` kann allerdings nicht `scale()` und `as.factor()` als Argumente enthalten. Daher müssen diese zuvor rekodiert werden. Ebenfalls hat `lmBF()` keine "silent case wise deletion", weshalb die Missings händisch gelöscht werden müssen.
+
+
+### Modelldiagnostik
+```{r cache = T, fig.height=10}
+check_model(mod12)
+```
+
+
+
+## Fragestellung 2 {.tabset}
+### Fragestellung
+> Moderiert der Barthel Index den Effekt des Pflegeumfangs auf den negativen Impact?
+
+### Modellierung {.tabset}
+#### Hinweis
+"Moderiert", "interagiert", "differiert ein Effekt" etc. sind typische Ausdrucksweisen für die Interpretation multiplikativer Terme in Regressionsgleichungen.
+
+#### Lösung
+```{r cache = T}
+mod13 <- lm(neg_c_7 ~ c12hour * barthtot, data = data_efc)
+tab_model(mod13, show.ci = F, show.std = T)
+```
+
+### Modellinterpretation
+Alle drei Effekte sind signifikant. Die Größe insbesondere des Interaktionseffekt ist wesentlich leichter zu interpretieren wenn man die Daten plottet oder standardisiert:
+
+```{r cache = T}
+plot_model(mod13, type = "pred",
+           terms = c("c12hour", 
+                     # `barthtot [30,50,70]` definiert **welche** differentiellen 
+                     # Effekte dargestellt werden
+                     "barthtot [30,50,70]")) + 
+  theme_ipsum()
+```
+
+
+### Modelldiagnostik
+```{r fig.height=10, cache = T}
+check_model(mod13)
+```
+
+
+
+
+
+
+# Übung: Einfache Regression mit Count Data
+```{r, echo = F, cache = T, results='hide'}
+data_medcaredemand <- read_sav("data/data_medcaredemand.sav")
+```
+## Datensatz 4: Demand for medical care
+Deb & Trivedi (1997) befragten über 4000 Individuen die älter als 60 waren (u.a.) zur _number of chronic conditions_ `numchron` und der _number of physicians office visits_ `ofp`, welche als Proxi des _demand for medical care_ diente.  
+Die Daten können wie folgt heruntergeladen werden (ein .sav-file gibt es `r xfun::embed_file("data/data_medcaredemand.sav", "data_medcaredemand.sav", "hier")`)
+```{r cache = T, eval = F}
+data_medcaredemand <- read_spss("https://raw.githubusercontent.com/sammerk/did_data/master/data_medcaredemand.sav") 
+
+cor(data_medcaredemand$numchron, data_medcaredemand$ofp, method = "spearman")
+```
+
+
+## Fragestellung 1 {.tabset}
+### Fragestellung 
+> Wie stark sind die beiden Variablen `numchron` und `ofp` assoziiert?
+
+### Lösung
+```{r cache = T}
+mod14 <- lm(ofp ~ numchron, data = data_medcaredemand)
+tab_model(mod14, show.std = T)
+```
+
+### Modellinterpretation
+Wir sehen einen kleinen bis moderaten signifikanten Effekt. Die kausale Relationierung der Variablen bleibt allerdings völlig ungeklärt.
+
+### Modelldiagnostik
+```{r cache = T}
+check_model(mod14)
+```
+Wieder führt die diskrete Prädiktorvariable zu Artefakten in der Referenceline in den ersten beiden Abbildungen. Weit problematischer Ist aber die Abweichung der Verteilung der Residuen von der Normalverteilung. Diese ist typisch für Count Data welche auch schon theoretisch die Linearitätsannahme in Frage stellen. Glücklicherweise gibt es dafür spezielle Regressionsmodelle - z.B. die Poissonregression.
+
+
+
+
+
+# Literatur
+Balducci, C., Mnich, E., McKee, K. J., Lamura, G., Beckmann, A., Krevers, B., Wojszel, Z. B., Nolan, M., Prouskas, C., Bien, B., & Oberg, B. (2008). Negative Impact and Positive Value in Caregiving: Validation of the COPE Index in a Six-Country Sample of Carers. The Gerontologist, 48(3), 276–286. https://doi.org/10.1093/geront/48.3.276  
+Cohen, J. (1988). Statistical power analysis for the behavioral sciences (2. Aufl.). Lawrence Erlbaum.  
+Deb, P., & Trivedi, P. K. (1997). Demand for medical care by the elderly: A finite mixture approach. Journal of applied Econometrics, 12(3), 313–336.
+Gelman, A., & Hill, J. (2007). Data analysis using regression and multilevel/hierarchical models. Cambridge University Press.  
+Nye, B., Hedges, L. V., & Konstantopoulos, S. (1999). The long-term effects of small classes: A five-year follow-up of the Tennessee class size experiment. Educational Evaluation and Policy Analysis, 21(2), 127–142. https://doi.org/10.3102/01623737021002127
+
+
+
+<style>
+.page-content .code-mask code, .page-content pre code {
+    font-size: 1.15em !important;
+}
+
+.MathJax span {
+    font-size: 100%;
+}
+</style>
