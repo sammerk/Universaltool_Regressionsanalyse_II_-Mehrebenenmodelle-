@@ -1,0 +1,61 @@
+% use `pdflatex -shell-escape Perfect_Circumplex.tex` in the terminal
+
+\documentclass[crop,tikz,convert={outext=.svg,command=\unexpanded{pdf2svg \infile\space\outfile}},multi=false]{standalone}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{calc,arrows,positioning}
+\usetikzlibrary{shapes.geometric,arrows,positioning}
+\definecolor{phg}{HTML}{8CD000} % Coporate Design Green
+
+
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage[]{mathastext} %% Hat noch die option [italic]
+% 'isomath' sets upper case greek letters italic in accordance with 
+% the International Standard ISO 80000-2
+%\usepackage{isomath}
+
+
+\begin{document}
+\tikzset{ % set color globally
+  every picture/.append style={
+    color=phg,
+  }
+}
+
+\begin{tikzpicture}
+[
+    level 1/.style = {sibling distance = 3cm},
+    level 2/.style = {sibling distance = 1cm}
+]
+\node {$co_1$}
+    child {node {$sc_{11}$}
+      child {node {$st_{111}$}}
+      child {node {$st_{112}$}}
+      child {node {$st_{113}$}}}
+    child {node {$sc_{12}$}
+      child {node {$st_{121}$}}
+      child {node {$st_{122}$}}
+      child {node {$st_{123}$}}}
+    child {node {$sc_{13}$}
+      child {node {$st_{131}$}}
+      child {node {$st_{132}$}}
+      child {node {$st_{133}$}}};
+\node  at (9,0) {$co_2$}
+    child {node {$sc_{21}$}
+      child {node {$st_{211}$}}
+      child {node {$st_{112}$}}
+      child {node {$st_{213}$}}}
+    child {node {$sc_{22}$}
+      child {node {$st_{221}$}}
+      child {node {$st_{222}$}}
+      child {node {$st_{223}$}}}
+    child {node {$sc_{23}$}
+      child {node {$st_{231}$}}
+      child {node {$st_{232}$}}
+      child {node {$st_{233}$}}};      
+      
+      
+      
+\end{tikzpicture}
+
+\end{document} 
