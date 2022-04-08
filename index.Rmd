@@ -67,13 +67,19 @@ Im Paket `{lme4}` ist der `r embed_file("data/data_sleepstudy.sav", "data_sleeps
 * Days: Anzahl der Tage des Schlafentzugs (der Schlafentzug startete nach Tag 2)
 * Subject: Personidentifier
 
+```{r}
+library(lme4)
+head(sleepstudy)
+```
+
+
 
 ## BilaKi Daten
 ```{r}
 data_bilaki_wide <- 
   read_sav("data/BilaKi_wide.sav") 
 
-data_bilaki_wide
+head(data_bilaki_wide)
 ```
 Elke hat uns `r embed_file("data/BilaKi_wide.sav", "BilaKi_wide.sav", "Daten")`  aus ihrem Projekt mitgebracht. Diese liegen im `wide`-Format vor und müssen zunächst einmal in das `long`-Format gebracht werden. Das kann bequem mit dem im `tidyverse` enthaltenen Paket `{tidyr}` geschehen:
 
@@ -94,7 +100,7 @@ data_bilaki_long <-
   mutate(time = substr(variable, 2, 2),
          time_factor = factor(time))
 
-data_bilaki_long
+head(data_bilaki_long)
 ```
 
 ## Popularity Data (Hox et al., 2017)
@@ -108,6 +114,8 @@ Für uns wichtige Variablen sind:
 ### Import
 ```{r}
 data_popularity <- read_sav(file ="https://github.com/MultiLevelAnalysis/Datasets-third-edition-Multilevel-book/blob/master/chapter%202/popularity/SPSS/popular2.sav?raw=true")
+
+head(data_popularity)
 ```  
 
 
@@ -155,9 +163,9 @@ tibble(
 
 # Einfache Multi-Level Begriffe konzeptuell verstehen 
 
-> Kernidee jeder Mehrebenenmodellierung ist, der Nestung der Daten dadurch Rechnung zu tragen, dass Effekte/Parameter sich zwar über die Cluster hinweg variieren können (Random Effects) aber simultan auch eine übergreifende Gemeinsamkeit modelliert wird (fixed effect). 
+> Kernidee jeder Mehrebenenmodellierung ist, der Nestung der Daten dadurch Rechnung zu tragen, dass Effekte/Parameter zwar über die Cluster hinweg variieren können (Random Effects) aber simultan auch eine übergreifende Gemeinsamkeit modelliert wird (Fixed Effects). 
 
-Prinzipiell ist graduierbar inwiefern sich das Gesamtmodell eher den Gegebenheiten innerhalb der einzelnen Cluster anpasst oder eher den Clusterübergreifenden Begebenheiten. Dabei sind zwei Extremfälle denkbar:
+Prinzipiell ist graduierbar, inwiefern sich das Gesamtmodell eher den Gegebenheiten innerhalb der einzelnen Cluster anpasst oder eher den Clusterübergreifenden Begebenheiten. Dabei sind zwei Extremfälle denkbar:
 
 1) Vollständige Anpassung innerhalb jedes Clusters $\Rightarrow \text{no pooling}$
 2) Anpassung unter völliger Ignoranz der Cluster $\Rightarrow \text{complete pooling}$
@@ -212,6 +220,9 @@ mod01
 
 plot_model(mod01, type = "re") + 
   theme_modern_rc()
+
+library(equatiomatic)
+extract_eq(mod01)
 ```
 
 ### Random Slope Model
@@ -223,6 +234,8 @@ mod02
 
 plot_model(mod02, type = "re") + 
   theme_modern_rc()
+
+extract_eq(mod02)
 ```
 
 
@@ -245,17 +258,16 @@ mod04 <- lmer(Reaction ~  1 + (1|Subject),
               data = sleepstudy )
 
 mod04
+
+extract_eq(mod04)
 ```
 Das Intercept Only Model ist insofern informativ, als dass es Aussagen darüber erlaubt, inwiefern die abhängige Variable Clustering aufweist: Wäre die Clusterzugehörikeit nicht prädiktiv für die durchschnittliche Ausprägung der abhängigen Variable, wäre der die Varianz des Intercept = 0.
 
 ### Intraclass Coefficient (1)
 Anhand des Intercept Only Models kann dann auch die sog. Intra Class Correlation bestimmt werden. Sie macht den Anteil der Intercept Varianz an der Gesamt varianz aus 
 
-$$ICC(1) = \rho=\frac{\sigma_{u_{0}}^{2}}{\sigma_{u_{0}}^{2}+\sigma_{e}^{2}}$$
-Wobei $\sigma_{u_{0}}^{2}$ und $\sigma_{e}^{2}$ die Residuen auf Ebene 1 bzw. Ebene 2 des Interecept Only Models darstellen, in denen jeweils i und j die Indices für Mirco- und Marcoeinheiten darstellen.
-$$Y_{i j}=\beta_{0 j}+e_{i j}$$
-$$\beta_{0 j}=\gamma_{00}+u_{0 j}$$
-$$Y_{i j}=\gamma_{00}+u_{0 j}+e_{i j}$$
+$$ICC(1) = \rho=\frac{\sigma^{2}_{\alpha_{j}}}{\sigma_{\alpha_{j}}^{2}+\sigma^{2}}$$
+Wobei $\sigma^{2}_{\alpha_{j}}$ und $\sigma^{2}$ die Residuen auf Ebene 1 bzw. Ebene 2 des Intercept Only Models darstellen, in denen jeweils i und j die Indices für Micro- und Marcoeinheiten darstellen.
 
 ### Fixed Effects vs Random Effects
 Die Begriffe Fixed Effects und Random Effects sind m.E. etwas missverständlich. Im Kern ist damit die Unterscheidung zwischen Punktschätzungen (z.B. $\gamma_{00}$) und "Parmetervarianzschätzungen" (z.B. $\sigma_{e}^{2}$) gemeint. Aus der Kombination beider können dann die "clusterspezifischen Parameter" (z.B. Random Slopes, Random Intercepts) abgeleitet werden (siehe Gelman & Hill, 2007))
@@ -302,7 +314,7 @@ psychometric::ICC1.lme(perf, ID, data_bilaki_long)
 psychometric::ICC1.lme(perf, V_ID, data_bilaki_long)
 ```
 
-## Einfaches Single-Level Modell mit Multi-Level Modell vergleichen
+## Einfaches Single-Level Modell mit Random-Intercept Modell vergleichen
 ### Single-Level Modell schätzen
 ```{r}
 mod05 <- lm(perf ~ time_factor, data = data_bilaki_long)
@@ -311,6 +323,7 @@ mod05 <- lm(perf ~ time_factor, data = data_bilaki_long)
 ### Multi-Level Modell schätzen
 ```{r}
 mod06 <- lmer(perf ~ time_factor + (1|ID), data = data_bilaki_long)
+extract_eq(mod06)
 ```
 
 ### Modelle vergleichen
@@ -325,7 +338,8 @@ anova(mod06, mod05)
 ```
 
 
-
+## Random-Intercept Modell mit Random Intercept and Random Slope Modell vergleichen
+Hier leider nicht möglich, da zu wenige Beobachtungen.
 
 
 # Literatur
