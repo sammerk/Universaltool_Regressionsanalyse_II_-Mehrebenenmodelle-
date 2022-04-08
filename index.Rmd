@@ -90,7 +90,7 @@ data_bilaki_long <-
                values_to = "perf",
                cols = c(m0_s1, m1_s1, m2_s1))
 
-data_bilaki_long
+head(data_bilaki_long)
 ```
 
 Dann muss man noch aus den Variablennamen die Info über den Messzeitpunkt entnehmen und eine nominale Zeitvariable erstellen.
