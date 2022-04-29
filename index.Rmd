@@ -1,6 +1,6 @@
 ---
 title: "Universaltool Regressionsanalyse II (Mehrebenenmodelle)"
-subtitle: "Tag 2: The Basics of Multi-Level Models"
+subtitle: "Tag 3: Using Multi-Level Models"
 author: "Samuel Merk"
 date: "08.04.2022"
 output: 
@@ -37,25 +37,20 @@ library(xfun)
 
 ```
 
-# Mein Plan für Tag II
-* Beispieldaten kennenlernen
-* Mehrebenenstrukturen erkennen und beschreiben 
-    * Classification Graphs
-    * Multilevel Propositions
-    * Data Tables
-* Mehrebenenanalysen begründen
-    * Multi-Level Modeling as a nuisance
-    * Multi-Level Modeling as an interesting question
-    * Multi-Level Modeling as default
-* Einfache Multi-Level Begriffe konzeptuell verstehen 
+# Materials von Tag 1 und 2
+Die Materials von Tag 1 & 2 könnt ihr hier herunterladen. Alle files sind auf `r fa("github")` unter https://bit.ly/merk039, die Dokumentation des heutigen Tag 3 findet ihr unter https://bit.ly/merk035.
+
+# Mein Plan für Tag III
+* Wdh: Einfache Multi-Level Begriffe konzeptuell verstehen 
     * No Pooling, Complete Pooling, Shrinkage
     * Intercept Only Model, Random Intercept Model, Random Slope Model, Random Intercept and Random Slope Model
     * Intraklassenkorrelation
     * Fixed Effects, Random Effect
+* Unsere Beispieldaten
 * Einfache Multi-Level Modelle parametrisieren und schätzen
 
 # Unsere Beispieldaten
-```{r, echo = F, results='hide', eval = F}
+```{r, echo = F, results='hide', eval = F, cache = T}
 write_sav(sleepstudy, "data/data_sleepstudy.sav")
 
 ```
@@ -64,10 +59,10 @@ write_sav(sleepstudy, "data/data_sleepstudy.sav")
 Im Paket `{lme4}` ist der `r embed_file("data/data_sleepstudy.sav", "data_sleepstudy.sav", "Datensatz")` `sleepstudy` enthalten. Diesen Daten liegt ein Experiment zugrunde indem dem Pbd Schlaf entzogen wurde Für uns wichtige Variablen sind:
 
 * Reaction: Durchschnittliche Reaktionszeit in einem Reaktionszeitexperiment in (ms)
-* Days: Anzahl der Tage des Schlafentzugs (der Schlafentzug startete nach Tag 2)
+* Days: Anzahl der Tage des Schlafentzugs (der Schlafentzug startete nach dem zweiten Tag)
 * Subject: Personidentifier
 
-```{r}
+```{r, cache = T}
 library(lme4)
 head(sleepstudy)
 ```
@@ -75,7 +70,7 @@ head(sleepstudy)
 
 
 ## BilaKi Daten
-```{r}
+```{r, cache = T}
 data_bilaki_wide <- 
   read_sav("data/BilaKi_wide.sav") 
 
@@ -83,7 +78,7 @@ head(data_bilaki_wide)
 ```
 Elke hat uns `r embed_file("data/BilaKi_wide.sav", "BilaKi_wide.sav", "Daten")`  aus ihrem Projekt mitgebracht. Diese liegen im `wide`-Format vor und müssen zunächst einmal in das `long`-Format gebracht werden. Das kann bequem mit dem im `tidyverse` enthaltenen Paket `{tidyr}` geschehen:
 
-```{r}
+```{r, cache = T}
 data_bilaki_long <- 
   data_bilaki_wide %>% 
   pivot_longer(names_to = "variable", 
@@ -94,7 +89,7 @@ head(data_bilaki_long)
 ```
 
 Dann muss man noch aus den Variablennamen die Info über den Messzeitpunkt entnehmen und eine nominale Zeitvariable erstellen.
-```{r}
+```{r, cache = T}
 data_bilaki_long <- 
   data_bilaki_long %>% 
   mutate(time = substr(variable, 2, 2),
@@ -107,239 +102,220 @@ head(data_bilaki_long)
 Dieser [Datensatz](https://github.com/MultiLevelAnalysis/Datasets-third-edition-Multilevel-book/blob/master/chapter%202/popularity/SPSS/popular2.sav) entstammt den einführenden Beispielen des gut lesbaren Lehrbuchs von Joop Hox et al (2017)
 Für uns wichtige Variablen sind: 
 
-* popular: Eine Likertskala zur Selbtseinschätzung der Beliebtheit
+* popular: Eine Likertskala zur Selbsteinschätzung der Beliebtheit
 * extrav: Extraversion (Big Five)
 * texp: Berufserfahrung der Lehrkraft
 
 ### Import
-```{r}
+```{r, cache = T}
 data_popularity <- read_sav(file ="https://github.com/MultiLevelAnalysis/Datasets-third-edition-Multilevel-book/blob/master/chapter%202/popularity/SPSS/popular2.sav?raw=true")
 
 head(data_popularity)
 ```  
 
 
-# Mehrebenenstrukturen erkennen und beschreiben
-## Begrifflichkeiten zur Beschreibung der Entitäten auf verschiedenen Ebenen
-Leider sind in der Literatur sehr unterschiedliche Vokabularien unterwegs. So listen Snijders & Bosker (2012) etwa folgende Begriffe für die Einheiten auf Ebene 1 bzw. 2:
+# Wdh: Begriffe
 
-```{r, echo = F}
-tibble(A = c("macro-level units", "macro-units", "primary units", "clusters", "level-two units"),
-       B = c("micro-level units", "micro-units", "secondary units", "elementary units", "level-one units")) %>% 
-  kable()
+```{r, echo = F, message=FALSE, fig.align='center', warning=FALSE, fig.width=14, cache = T}
+library(tidyverse)
+library(highcharter)
+library(viridisLite)
+hchart(
+  tibble(
+  word = sample(c("no pooling", "complete pooling", "shrinkage", "partial pooling",
+                  "perfect hierarchy", "imperfect hierarchy", "classification graph",
+                  "multi-level proposition", "cluster robust modeling",
+                  "multi-level as a nuisance", "random intercept", "random slope",
+                  "intra class correlation", "deviance test"), 30, replace = T),
+  freq = sample(1:50, 30, replace = T)),
+  "wordcloud",
+  hcaes(name = word, weight = log(freq)),
+  ) %>% 
+   hc_colors("#8CD000")
+
 ```
 
-## Classification Diagramms
-Eine typische und sehr heuristische Methode Mehrebenenstrukturen zu beschreiben stellt das Zeichnen sog. Classification Graphs dar (Snijders & Bosker, 2012).
-```{r, echo = F, fig.cap="Perfekte Dreiebenenhierarchie", out.width="100%"}
-include_graphics("img/student_class_school_classification.svg")
-```
-
-Zeichnet man ein solches Diagramm für seinen Datensatz, erkennt man typischerweise die Anzahl der Ebenen und inwiefern eine perfekte/imperfekte Hierarchie vorliegt.
-
-## Multilevel Propositions
-Mit Mehrebenenmodellen werden Aussagen (Propositionen) in Mehrebenenstrukturen modelliert. Anders als im Single-Level-Fall, lohnt es sich hier nach Ebenen der abhängigen und unabhängigen Variablen zu unterscheiden:
-```{r, echo = F, fig.cap="Multilevel Propositions", out.width="100%"}
-include_graphics("img/multilevel_propositions.svg")
-```
-
-
-## Data Tables
-Auch in der Datenmatrix direkt erkennt man Mehrebenenstruktruren meist ganz gut:
-```{r, echo = F}
-tibble(
-  Schule = 1:2,
-  Klasse = 1:2,
-  `Schüler*in` = 1:2
-) %>% 
-  tidyr::expand(Schule, Klasse, `Schüler*in`) %>% 
-  kable()
-```
-
-# Mehrebenenanalysen begründen
-* Multi-Level Modeling as a nuisance $\Rightarrow$ Cluster Robust Modeling
-* Multi-Level Modeling as an interesting question $\Rightarrow$ Multi-Level Modeling
-* Multi-Level Modeling as default $\Rightarrow$ Multi-Level Modeling
-
-# Einfache Multi-Level Begriffe konzeptuell verstehen 
-
-> Kernidee jeder Mehrebenenmodellierung ist, der Nestung der Daten dadurch Rechnung zu tragen, dass Effekte/Parameter zwar über die Cluster hinweg variieren können (Random Effects) aber simultan auch eine übergreifende Gemeinsamkeit modelliert wird (Fixed Effects). 
-
-Prinzipiell ist graduierbar, inwiefern sich das Gesamtmodell eher den Gegebenheiten innerhalb der einzelnen Cluster anpasst oder eher den Clusterübergreifenden Begebenheiten. Dabei sind zwei Extremfälle denkbar:
-
-1) Vollständige Anpassung innerhalb jedes Clusters $\Rightarrow \text{no pooling}$
-2) Anpassung unter völliger Ignoranz der Cluster $\Rightarrow \text{complete pooling}$
-
-Mehrebenenmodellierungen stellen eine Art $\text{partial pooling}$ dar. Dieses erfolgt in einer Art und Weise die sicherstellt, dass stark abweichende Cluster stärker von der Gesamtsituation beeinflusst werden bzw. umgekehrt selbige schwächer informieren.
-
-## Beispiel für no pooling:
-```{r, fig.width=12, fig.height=5, echo = F, message = F}
-ggplot(sleepstudy %>% 
-         filter(Subject %in% c(308, 309, 310, 330, 331)), aes(Days, Reaction)) + 
-  geom_point(color = "#8cd000") + 
-  facet_wrap(~Subject, ncol = 5) + 
-  stat_smooth(method = "lm", se = F, color = "#8cd000") +
-  theme_modern_rc() +
-  ggtitle("No Pooling", "fünf ausgewählter Proband*innen") + 
-  theme(strip.text = element_text(color = "#ffffff"))
-```
-
-## Beispiel für complete pooling:
-```{r, fig.width=12, fig.height=5, echo = F, message = F}
-ggplot(sleepstudy %>% 
-         filter(Subject %in% c(308, 309, 310, 330, 331)), aes(Days, Reaction)) + 
-  geom_point(color = "#8cd000") + 
-  geom_abline(aes(intercept = 253.976, slope = 6.966), color = "#8cd000") +
-  facet_wrap(~Subject, ncol = 5) + 
-  theme_modern_rc() +
-  ggtitle("Complete Pooling", "fünf ausgewählter Proband*innen") + 
-  theme(strip.text = element_text(color = "#ffffff"))
-```
-
-## Complete und no pooling:
-```{r, fig.width=12, fig.height=5, echo = F, message = F}
-ggplot(sleepstudy %>% 
-         filter(Subject %in% c(308, 309, 310, 330, 331)), aes(Days, Reaction)) + 
-  geom_point(color = "#8cd000") + 
-  geom_abline(aes(intercept = 253.976, slope = 6.966), color = "#8cd00050") +
-  stat_smooth(method = "lm", se = F, color = "#8cd00050", linetype = "dashed") +
-  facet_wrap(~Subject, ncol = 5) + 
-  theme_modern_rc() +
-  ggtitle("Complete und No Pooling", "fünf ausgewählter Proband*innen") + 
-  theme(strip.text = element_text(color = "#ffffff"))
-```
-
-
-## Klassische (einfache) Mehrebenenmodelle
-### Random Intercept Model
-```{r}
-mod01 <- lmer(Reaction ~ Days + (1|Subject),
-              data = sleepstudy )
-
-mod01
-
-plot_model(mod01, type = "re") + 
-  theme_modern_rc()
-
-library(equatiomatic)
-extract_eq(mod01)
-```
-
-### Random Slope Model
-```{r}
-mod02 <- lmer(Reaction ~  Days + (Days - 1|Subject),
-              data = sleepstudy )
-
-mod02
-
-plot_model(mod02, type = "re") + 
-  theme_modern_rc()
-
-extract_eq(mod02)
-```
-
-
-### Random Intercept Random Slope Model
-```{r}
-mod03 <- lmer(Reaction ~  Days + (1 + Days|Subject),
-              data = sleepstudy )
-
-mod03
-
-plot_model(mod03, type = "re") + 
-  theme_modern_rc() +
-  theme(strip.text = element_text(color = "#ffffff"))
-```
-
-
-### Intercept Only Model
-```{r}
-mod04 <- lmer(Reaction ~  1 + (1|Subject),
-              data = sleepstudy )
-
-mod04
-
-extract_eq(mod04)
-```
-Das Intercept Only Model ist insofern informativ, als dass es Aussagen darüber erlaubt, inwiefern die abhängige Variable Clustering aufweist: Wäre die Clusterzugehörikeit nicht prädiktiv für die durchschnittliche Ausprägung der abhängigen Variable, wäre der die Varianz des Intercept = 0.
-
-### Intraclass Coefficient (1)
-Anhand des Intercept Only Models kann dann auch die sog. Intra Class Correlation bestimmt werden. Sie macht den Anteil der Intercept Varianz an der Gesamt varianz aus 
-
-$$ICC(1) = \rho=\frac{\sigma^{2}_{\alpha_{j}}}{\sigma_{\alpha_{j}}^{2}+\sigma^{2}}$$
-Wobei $\sigma^{2}_{\alpha_{j}}$ und $\sigma^{2}$ die Residuen auf Ebene 1 bzw. Ebene 2 des Intercept Only Models darstellen, in denen jeweils i und j die Indices für Micro- und Marcoeinheiten darstellen.
-
-### Fixed Effects vs Random Effects
-Die Begriffe Fixed Effects und Random Effects sind m.E. etwas missverständlich. Im Kern ist damit die Unterscheidung zwischen Punktschätzungen (z.B. $\gamma_{00}$) und "Parmetervarianzschätzungen" (z.B. $\sigma_{e}^{2}$) gemeint. Aus der Kombination beider können dann die "clusterspezifischen Parameter" (z.B. Random Slopes, Random Intercepts) abgeleitet werden (siehe Gelman & Hill, 2007))
-
+> AA: Elaboriert diese Begriffe in dem Ihr Sie auf eines der händisch skizzierten Datenbeispiele (siehe live-demo) anwendet.
 
 # Einfache Multi-Level Modelle parametrisieren und schätzen
-Da bei Anfänger\*innen typischerweise beliebt, stelle ich hier eine Art Kochrezept für eine typische - aber nicht immer erfolgreiche und problemlose - Vorgehenweise vor. Dabei beziehe ich mich auf die `BilaKi`-Daten
+## Sleep Study 
+### Die Mehrebenenstruktur verstehen {.tabset}
+#### Fragestellung
+> Wie kann die Mehrebenenstruktur der `Sleep Study Datensatzes` beschrieben werden?
 
-## Mehrebenenstruktur verstehen
-Wir haben Messzeitpunkte in Individuen udn Individuen in Trainingsgruppen genested vorliegen (3-Ebenen Struktur).
+#### Lösungshinweis 1
+Mit `head(sleepstudy)` erkennt man, dass der Datensatz nur aus AV, UV, Subjectidentifier besteht. Also muss können maximal zwei Ebenen im Datensatz vorkommen.  
+Bildet man ein Tabelle mit `Days` und `Subject` kann man entscheiden ob eine perfect iode rimperfecte Hierarchie vorliegt.
 
-## Überblick über Größe und Anzahl der Micro und Macro Units verschaffen
+#### Lösungshinweis 2
+Eine solche Tabelle erhält man mit `table(sleepstudy$Days, sleepstudy$Subject)`
+
+#### Lösung
+Es handelt um eine perfekte Zweiebenenstruktur mit folgenden Nestgrößen und folgender Nestanzahl:
 ```{r}
-data_bilaki_long %>% 
-  na.omit(.) %>% 
-  group_by(ID) %>% 
-  summarize(N = n()) %>% 
-  ggplot(., aes(N)) +
-  geom_bar(color = "#8cd00000", fill = "#8cd000") + 
-  ggtitle("Häufigkeit der Nestgrößen", "auf Ebene 1") + 
-  theme_modern_rc()
+library(lme4) #enthält den Datensatz
+# Nestanzahl
+length(unique(sleepstudy$Subject))
 
-data_bilaki_long %>% 
-  na.omit(.) %>%
-  select(V_ID, ID) %>% 
-  distinct() %>% 
-  group_by(V_ID) %>% 
-  summarize(N = n()) %>% 
-  ggplot(., aes(N)) +
-  geom_bar(color = "#8cd00000", fill = "#8cd000") + 
-  ggtitle("Häufigkeit der Nestgrößen", "auf Ebene 2") + 
-  theme_modern_rc()
+# Nestgrößen
+sleepstudy %>% 
+  group_by(Subject) %>% 
+  summarize(Nestgröße = n())
 ```
 
-## ICC auf Ebene 1 schätzen
-```{r}
-lmer(perf ~ 1 + (1|ID), data = data_bilaki_long)
+### Intraklasenkorrelation schätzen und verstehen {.tabset}
+#### Fragestellung
+Der ICC hilft dabei empirisch zu erkennen wie stark sich die Mehrebenenstruktur in der abhängigen Variable ausdrückt. Dazu schätzt man ein Intercept-Only Modell und setzt die Intercept-Varianz ins Verhältnis zur Gesamtvarianz.
 
-psychometric::ICC1.lme(perf, ID, data_bilaki_long)
+```{r, echo = F}
+extract_eq(lmer(Reaction ~ 1 + (1|Subject), data = sleepstudy))
 ```
 
-## ICC auf Ebene 2 schätzen
+#### Lösungshinweis 1
+Die Syntax für das Intercept-Only Modell lautet `lmer(Reaction ~ 1 + (1|Subject), data = sleepstudy)`
+
+#### Lösungshinweis 2
+Richtig schnell geht es mit der Funktion `icc()` aus dem Package `{performance}`.
+
+#### Lösung
 ```{r}
-psychometric::ICC1.lme(perf, V_ID, data_bilaki_long)
+library(performance)
+library(lme4)
+mod01_sleepstudy <- lmer(Reaction ~ 1 + (1|Subject), data = sleepstudy)
+icc(mod01_sleepstudy)
 ```
 
-## Einfaches Single-Level Modell mit Random-Intercept Modell vergleichen
-### Single-Level Modell schätzen
+Dieser ICC ist vglw. groß! Multi-Level Modelling ist also nicht nur theoretisch impliziert sonder auch empirisch.
+
+### Single Level Model schätzen {.tabset}
+#### Fragestellung
+Um später entscheiden zu können inwiefern Random Interept und Slope *empirisch* gerechtfertigt sind, kann man zunächst ein Single Level Model schätzen um dieses später mit den komplexeren Multi-Level Modellen zu schätzen.
+
+#### Lösung
 ```{r}
-mod05 <- lm(perf ~ time_factor, data = data_bilaki_long)
+mod02_sleepstudy <- lm(Reaction ~ Days, data = sleepstudy)
+summary(mod02_sleepstudy)
+```
+Das entspricht einem Modell
+```{r, echo = F}
+extract_eq(mod02_sleepstudy, intercept = "beta", greek_colors = "#8cd000")
+```
+mit den Koeffizienten
+```{r, echo = F}
+extract_eq(mod02_sleepstudy, intercept = "beta", greek_colors = "#8cd000", use_coefs = T)
 ```
 
-### Multi-Level Modell schätzen
+### Random Intercept Model schätzen und vergleichen {.tabset}
+
+#### Fragestellung
+Wie ändern sich die Koeffizienten des Modells, wenn man zulässt, dass Intercepts zwischen den Clustern variieren?
+
+#### Lösungshinweis
+Das Intercept kann ja als konstanter Prädiktor mit dem Wert 1 aufgefasst werden. Daher lautet die Syntax für das Random Intercept `(1|Subject)` (lies: »das Intercept darf über die Clustervariable `Subject` variieren«).
+
+#### Lösung
 ```{r}
-mod06 <- lmer(perf ~ time_factor + (1|ID), data = data_bilaki_long)
-extract_eq(mod06)
+mod03_sleepstudy <- lmer(Reaction ~ Days + (1|Subject), data = sleepstudy)
+summary(mod03_sleepstudy)
+```
+Das entspricht einem Modell
+```{r, echo = F}
+extract_eq(mod03_sleepstudy, intercept = "beta", greek_colors = "#8cd000")
+```
+mit den Koeffizienten
+```{r, echo = F}
+extract_eq(mod03_sleepstudy, intercept = "beta", greek_colors = "#8cd000", use_coefs = T)
+```
+Die Modelle vergleichen kann man mit der Syntax
+```{r}
+tab_model(mod01_sleepstudy, mod02_sleepstudy, mod03_sleepstudy)
 ```
 
-### Modelle vergleichen
+Die Modelle gegeneinander Testen $H_0: \text{beide Modelle klären gleich viel Varianz auf}$ kann man mit dem `anova()`-Befehl:
 ```{r}
-tab_model(mod05, mod06, 
-          show.std = T)
+anova(mod03_sleepstudy, mod02_sleepstudy)
+```
+Unterschied ist signifikant, also steigert das Random Intercept die Modellpassung überzufällig.
+
+### Random Intercept Random Slope Model schätzen und vergleichen {.tabset}
+#### Fragestellung
+Wie ändern sich die Koeffizienten des Modells, wenn man zulässt, dass Intercept und Slopes variieren?
+
+#### Lösungshinweis
+Die Syntax für ddie Random Effects lautet `(1 + Dayes|Subject)` (lies: »das Intercept und die Slopes dürfen über die Clustervariable `Subject` variieren«).
+
+#### Lösung
+```{r}
+mod04_sleepstudy <- lmer(Reaction ~ Days + (1 + Days|Subject), data = sleepstudy)
+summary(mod03_sleepstudy)
+```
+Das entspricht einem Modell
+```{r, echo = F}
+extract_eq(mod04_sleepstudy, intercept = "beta", greek_colors = "#8cd000")
+```
+mit den Koeffizienten
+```{r, echo = F}
+extract_eq(mod04_sleepstudy, intercept = "beta", greek_colors = "#8cd000", use_coefs = T)
+```
+Die Modelle vergleicht man mit der Syntax
+```{r}
+tab_model(mod01_sleepstudy, mod02_sleepstudy, mod03_sleepstudy, mod04_sleepstudy)
 ```
 
-### Modelle gegeneinander testen
+Die Modelle gegeneinander Testen $H_0: \text{beide Modelle klären gleich viel Varianz auf}$ kann man mit dem `anova()`-Befehl:
 ```{r}
-anova(mod06, mod05)
+anova(mod04_sleepstudy, mod03_sleepstudy)
+```
+Unterschied ist signifikant, also steigert der zusätzliche Random Slope die Modellpassung überzufällig.
+
+# Multi-level Modelle in MPlus
+```{r, echo=FALSE, results='hide'}
+library(MplusAutomation)
+mpmod <- 
+  mplusObject(TITLE = "Random Intercept Random Slope Modell (sleepstudy)",
+              VARIABLE = "NAMES ARE reac days subj;
+                          CLUSTER = subj;
+                          WITHIN = days;",
+              ANALYSIS = "TYPE = TWOLEVEL RANDOM;",
+              MODEL = "%WITHIN%
+                       s | reac ON days;
+                       %BETWEEN%
+                       reac s;",
+              autov = F,
+              rdata = sleepstudy)
+
+mplusModeler(mpmod, 
+             modelout = "MPlus/mod.inp",
+             run = 1L,
+             hashfilename = F)
 ```
 
+MPlus ist statistisch ultra-mächtig aber im vgl. zu `r fa("r-project", fill = "#8cd000")` sehr umständlich, da es keine Data Wrangling Funktionen hat. Daher muss man seine Multi-Level Daten zunächst mit einer anderen Software aufbereiten und als `r xfun::embed_file(c("MPlus/mod.dat"), "mod.dat", ".dat-File")` speichern, bevor man dieses wieder in MPlus einliest, in einem `r xfun::embed_file(c("MPlus/mod.inp"), "mod.inp", ".inp-Textfile")` die Syntax speichert und ausführt, aufdass die Ergebnisse dann in einem wiederum gesondeten `r xfun::embed_file(c("MPlus/mod.out"), "mod.out", ".out-Textfile")` gespeichert werden. Da es im Mplus keine Objektorientierung gibt, muss man dann Modellvergleiche (z.B. Devianztest) händisch anhand der beiden .out-Files machen.
 
-## Random-Intercept Modell mit Random Intercept and Random Slope Modell vergleichen
-Hier leider nicht möglich, da zu wenige Beobachtungen.
+`
+
+Die Syntax sieht in MPlus wie folgt aus:
+
+    TITLE:    Random Intercept Random Slope Modell (sleepstudy)
+    DATA:     FILE = "MPlus/mod.dat";
+     
+    VARIABLE: NAMES ARE reac days subj;
+              CLUSTER = subj;
+              WITHIN = days;
+    ANALYSIS: TYPE = TWOLEVEL RANDOM;
+    MODEL:    %WITHIN%
+              s | reac ON days;
+              %BETWEEN%
+              reac s;
+              
+# JASP
+In JASP/jamovi bekommt ihr das Random Intercept Random Slope Modell, wenn ihr den `sleepstudy` Datensatz als `r embed_file("data/data_sleepstudy.sav", "data_sleepstudy.sav", ".sav-File")` einlest und dann die folgenden Einstellungen vornehmt:
+
+```{r, echo = F, fig.cap="Einstellungen für ein Random Intercept Random Slope Modell"}
+knitr::include_graphics("img/randomeffectsjasp.png")
+```
+
+oder gleich diese `r embed_file("data/random_effects_sleepstudy.jasp", "random_effects_sleepstudy.jasp", "reproduzierbare JASP-Analyse")` öffnet.
 
 
 # Literatur

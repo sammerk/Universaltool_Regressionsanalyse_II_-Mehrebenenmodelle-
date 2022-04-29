@@ -1,0 +1,176 @@
+Mplus VERSION 8.7 (Mac)
+MUTHEN & MUTHEN
+04/28/2022   5:20 PM
+
+INPUT INSTRUCTIONS
+
+  TITLE:
+  Random Intercept Random Slope Modell (sleepstudy)
+  DATA:
+  FILE = "MPlus/mod.dat";
+
+  VARIABLE:
+  NAMES ARE reac days subj;
+                            CLUSTER = subj;
+                            WITHIN = days;
+  ANALYSIS:
+  TYPE = TWOLEVEL RANDOM;
+  MODEL:
+  %WITHIN%
+                         s | reac ON days;
+                         %BETWEEN%
+                         reac s;
+
+
+
+INPUT READING TERMINATED NORMALLY
+
+
+
+
+Random Intercept Random Slope Modell (sleepstudy)
+
+SUMMARY OF ANALYSIS
+
+Number of groups                                                 1
+Number of observations                                         180
+
+Number of dependent variables                                    1
+Number of independent variables                                  1
+Number of continuous latent variables                            1
+
+Observed dependent variables
+
+  Continuous
+   REAC
+
+Observed independent variables
+   DAYS
+
+Continuous latent variables
+   S
+
+Variables with special functions
+
+  Cluster variable      SUBJ
+
+  Within variables
+   DAYS
+
+
+Estimator                                                      MLR
+Information matrix                                        OBSERVED
+Maximum number of iterations                                   100
+Convergence criterion                                    0.100D-05
+Maximum number of EM iterations                                500
+Convergence criteria for the EM algorithm
+  Loglikelihood change                                   0.100D-02
+  Relative loglikelihood change                          0.100D-05
+  Derivative                                             0.100D-03
+Minimum variance                                         0.100D-03
+Maximum number of steepest descent iterations                   20
+Maximum number of iterations for H1                           2000
+Convergence criterion for H1                             0.100D-03
+Optimization algorithm                                         EMA
+
+Input data file(s)
+  MPlus/mod.dat
+Input data format  FREE
+
+
+SUMMARY OF DATA
+
+     Number of clusters                         18
+
+     Average cluster size       10.000
+
+     Estimated Intraclass Correlations for the Y Variables
+
+                Intraclass              Intraclass
+     Variable  Correlation   Variable  Correlation
+
+     REAC         0.411
+
+
+
+
+UNIVARIATE SAMPLE STATISTICS
+
+
+     UNIVARIATE HIGHER-ORDER MOMENT DESCRIPTIVE STATISTICS
+
+         Variable/         Mean/     Skewness/   Minimum/ % with                Percentiles
+        Sample Size      Variance    Kurtosis    Maximum  Min/Max      20%/60%    40%/80%    Median
+
+     REAC                298.508       0.586     194.332    0.56%     249.560    277.657    288.651
+             180.000    3155.301       0.063     466.353    0.56%     305.349    347.586
+     DAYS                  4.500       0.000       0.000   10.00%       1.000      3.000      4.500
+             180.000       8.250      -1.224       9.000   10.00%       5.000      7.000
+
+
+THE MODEL ESTIMATION TERMINATED NORMALLY
+
+
+
+MODEL FIT INFORMATION
+
+Number of Free Parameters                        5
+
+Loglikelihood
+
+          H0 Value                        -876.002
+          H0 Scaling Correction Factor      2.1264
+            for MLR
+
+Information Criteria
+
+          Akaike (AIC)                    1762.003
+          Bayesian (BIC)                  1777.968
+          Sample-Size Adjusted BIC        1762.133
+            (n* = (n + 2) / 24)
+
+
+
+MODEL RESULTS
+
+                                                    Two-Tailed
+                    Estimate       S.E.  Est./S.E.    P-Value
+
+Within Level
+
+ Residual Variances
+    REAC             653.085    205.888      3.172      0.002
+
+Between Level
+
+ Means
+    REAC             251.432      6.630     37.922      0.000
+    S                 10.462      1.502      6.965      0.000
+
+ Variances
+    REAC             586.502    230.572      2.544      0.011
+    S                 33.564     11.563      2.903      0.004
+
+
+QUALITY OF NUMERICAL RESULTS
+
+     Condition Number for the Information Matrix              0.155E-02
+       (ratio of smallest to largest eigenvalue)
+
+
+     Beginning Time:  17:20:56
+        Ending Time:  17:20:56
+       Elapsed Time:  00:00:00
+
+
+
+MUTHEN & MUTHEN
+3463 Stoner Ave.
+Los Angeles, CA  90066
+
+Tel: (310) 391-9971
+Fax: (310) 391-8971
+Web: www.StatModel.com
+Support: Support@StatModel.com
+
+Copyright (c) 1998-2021 Muthen & Muthen

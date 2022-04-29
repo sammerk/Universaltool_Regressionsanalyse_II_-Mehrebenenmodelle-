@@ -1,0 +1,16 @@
+TITLE:
+Random Intercept Random Slope Modell (sleepstudy)
+DATA:
+FILE = "MPlus/mod.dat";
+ 
+VARIABLE:
+NAMES ARE reac days subj;
+                          CLUSTER = subj;
+                          WITHIN = days;
+ANALYSIS:
+TYPE = TWOLEVEL RANDOM;
+MODEL:
+%WITHIN%
+                       s | reac ON days;
+                       %BETWEEN%
+                       reac s;
