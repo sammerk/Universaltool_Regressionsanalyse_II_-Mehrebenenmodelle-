@@ -38,7 +38,7 @@ library(xfun)
 ```
 
 # Materials von Tag 1 und 2
-Die Materials von Tag 1 & 2 könnt ihr hier herunterladen. Alle files sind auf `r fa("github")` unter https://bit.ly/merk039, die Dokumentation des heutigen Tag 3 findet ihr unter https://bit.ly/merk035.
+Die Materials von Tag 1 & 2 findet ihr auf `r fa("github")` unter https://bit.ly/merk039, die Dokumentation des heutigen Tag 3 ist unter https://bit.ly/merk035 aufrufbar.
 
 # Mein Plan für Tag III
 * Wdh: Einfache Multi-Level Begriffe konzeptuell verstehen 
