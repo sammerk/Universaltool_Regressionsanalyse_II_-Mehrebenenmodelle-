@@ -69,34 +69,6 @@ head(sleepstudy)
 
 
 
-## BilaKi Daten
-```{r, cache = T}
-data_bilaki_wide <- 
-  read_sav("data/BilaKi_wide.sav") 
-
-head(data_bilaki_wide)
-```
-Elke hat uns `r embed_file("data/BilaKi_wide.sav", "BilaKi_wide.sav", "Daten")`  aus ihrem Projekt mitgebracht. Diese liegen im `wide`-Format vor und müssen zunächst einmal in das `long`-Format gebracht werden. Das kann bequem mit dem im `tidyverse` enthaltenen Paket `{tidyr}` geschehen:
-
-```{r, cache = T}
-data_bilaki_long <- 
-  data_bilaki_wide %>% 
-  pivot_longer(names_to = "variable", 
-               values_to = "perf",
-               cols = c(m0_s1, m1_s1, m2_s1))
-
-head(data_bilaki_long)
-```
-
-Dann muss man noch aus den Variablennamen die Info über den Messzeitpunkt entnehmen und eine nominale Zeitvariable erstellen.
-```{r, cache = T}
-data_bilaki_long <- 
-  data_bilaki_long %>% 
-  mutate(time = substr(variable, 2, 2),
-         time_factor = factor(time))
-
-head(data_bilaki_long)
-```
 
 ## Popularity Data (Hox et al., 2017)
 Dieser [Datensatz](https://github.com/MultiLevelAnalysis/Datasets-third-edition-Multilevel-book/blob/master/chapter%202/popularity/SPSS/popular2.sav) entstammt den einführenden Beispielen des gut lesbaren Lehrbuchs von Joop Hox et al (2017)
